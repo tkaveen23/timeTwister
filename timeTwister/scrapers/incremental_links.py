@@ -273,11 +273,27 @@ def collect_wp_category_links(driver: Any, url: str, site: str) -> list[str]:
     base = f"https://www.{site}.lk"
     links: list[str] = []
     seen: set[str] = set()
-    for a in soup.select("ul li article h2 a, section article h2 a, ul section article h2 a"):
+    
+    # Try multiple CSS selector pathways for post cards
+    selectors = [
+        "ul li article h2 a", "section article h2 a", "ul section article h2 a",
+        "article.hentry h2 a", "article h2 a", ".post-entry h2 a", "article a"
+    ]
+    
+    elements = []
+    for selector in selectors:
+        elements = soup.select(selector)
+        if elements:
+            break
+            
+    for a in elements:
         href = a.get("href") or ""
         if href.startswith("/"):
             href = base + href
         if href.startswith("http") and site in href and href not in seen:
+            # Skip category or author pages that might match general article select paths
+            if "/category/" in href or "/author/" in href:
+                continue
             seen.add(href)
             links.append(href)
     return links
