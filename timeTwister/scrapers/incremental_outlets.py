@@ -832,7 +832,7 @@ def run_virakesari_incremental() -> int:
 
 def run_thinakaran_incremental() -> int:
     mod = _import_scraper("thinakaran_selenium_json")
-    cats = ["local", "politics", "features", "editorial", "sports", "business"]
+    cats = ["local", "politics", "editorial", "sports", "business", "world"]
     pages = [(c, f"https://www.thinakaran.lk/category/{c}/") for c in cats]
     collect = lambda d, u: collect_wp_category_links(d, u, "thinakaran")
 
