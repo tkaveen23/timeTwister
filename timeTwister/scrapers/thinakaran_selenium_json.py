@@ -21,6 +21,16 @@ from bs4 import BeautifulSoup
 import time
 import json
 import sys
+# Set up UTF-8 encoding for console output (Windows fix)
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        pass
+
 from datetime import datetime, timedelta
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -81,23 +91,25 @@ def extract_article_content(driver, max_elapsed_time=30):
         date_meta = soup.find('meta', attrs={'property': 'article:published_time'})
         if date_meta and date_meta.has_attr('content'):
             try:
-                date_str = date_meta['content']
-                date_str_clean = date_str.split('+')[0].split('T')
-                if len(date_str_clean) == 2:
-                    date_published = datetime.strptime(f"{date_str_clean[0]} {date_str_clean[1]}", "%Y-%m-%d %H:%M:%S")
-                    print(f"     Found exact date: {date_published}")
-            except ValueError as e:
-                print(f"     Error parsing date '{date_meta['content']}': {e}")
+                date_str = date_meta['content'].strip()
+                if date_str.endswith('Z'):
+                    date_str = date_str[:-1] + '+00:00'
+                parsed_dt = datetime.fromisoformat(date_str)
+                date_published = parsed_dt.replace(tzinfo=None)
+                print(f"     Found exact date: {date_published}")
+            except:
+                pass
         
         if not date_published:
             time_tag = soup.find('time')
             if time_tag and time_tag.has_attr('datetime'):
                 try:
-                    date_str = time_tag['datetime']
-                    date_str_clean = date_str.split('+')[0].split('T')
-                    if len(date_str_clean) == 2:
-                        date_published = datetime.strptime(f"{date_str_clean[0]} {date_str_clean[1]}", "%Y-%m-%d %H:%M:%S")
-                        print(f"     Found date from time tag: {date_published}")
+                    date_str = time_tag['datetime'].strip()
+                    if date_str.endswith('Z'):
+                        date_str = date_str[:-1] + '+00:00'
+                    parsed_dt = datetime.fromisoformat(date_str)
+                    date_published = parsed_dt.replace(tzinfo=None)
+                    print(f"     Found date from time tag: {date_published}")
                 except:
                     pass
 
@@ -329,11 +341,13 @@ def process_articles_from_page(driver, list_url, start_date, end_date):
     print(f"   Now scraping articles...")
     
     try:
-        container = driver.find_element(By.CSS_SELECTOR, "ul.penci-wrapper-data")
-        article_elements = container.find_elements(By.TAG_NAME, "article")
-        print(f"   [DEBUG] Found {len(article_elements)} articles in main container")
+        # Fallback to direct article tag search if penci-wrapper-data is missing
+        article_elements = driver.find_elements(By.CSS_SELECTOR, "article.hentry")
+        if not article_elements:
+            article_elements = driver.find_elements(By.TAG_NAME, "article")
+        print(f"   [DEBUG] Found {len(article_elements)} articles")
     except Exception as e:
-        print(f"   [ERROR] Could not find article container: {e}")
+        print(f"   [ERROR] Could not find article elements: {e}")
         return [], 0, 0
     
     for article_idx, article_el in enumerate(article_elements):
@@ -609,7 +623,7 @@ def main(start_date=None, end_date=None):
     driver.set_page_load_timeout(60)
     print(f"[INFO] Page load timeout set to 60 seconds")
 
-    categories = ["local", "politics", "features", "editorial", "sports", "business", "world"]
+    categories = ["local", "politics", "editorial", "sports", "business", "world"]
     scraped_urls = set()
     all_articles = []
     total_articles_in_range = 0
