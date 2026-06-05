@@ -58,10 +58,13 @@ def extract_article_content(driver):
         date_meta = soup.find('meta', attrs={'property': 'article:published_time'})
         if date_meta and date_meta.has_attr('content'):
             try:
-                date_str = date_meta['content']
-                date_str_clean = date_str.split('+')[0].split('T')
-                if len(date_str_clean) == 2:
-                    date_published = datetime.strptime(f"{date_str_clean[0]} {date_str_clean[1]}", "%Y-%m-%d %H:%M:%S")
+                date_str = date_meta['content'].strip()
+                if date_str.endswith('Z'):
+                    date_str = date_str[:-1] + '+00:00'
+                # Parse robustly using fromisoformat
+                parsed_dt = datetime.fromisoformat(date_str)
+                # Convert to naive datetime matching scraper standard
+                date_published = parsed_dt.replace(tzinfo=None)
             except:
                 pass
 

@@ -325,15 +325,16 @@ def collect_divaina_main_links(driver: Any, url: str) -> list[str]:
 
 def collect_thamilan_links(driver: Any, url: str) -> list[str]:
     _navigate(driver, url, 3)
+    soup = BeautifulSoup(driver.page_source, "html.parser")
     links: list[str] = []
     seen: set[str] = set()
-    for h2 in driver.find_elements(By.CSS_SELECTOR, "h2.hidden.font-heading"):
-        try:
-            parent_a = h2.find_element(By.XPATH, "./..")
-            href = parent_a.get_attribute("href")
-            if href and href not in seen:
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if "/articles/" in href:
+            if href.startswith("/"):
+                href = "https://www.thamilan.lk" + href
+            if href not in seen:
                 seen.add(href)
                 links.append(href)
-        except Exception:
-            continue
     return links
+
